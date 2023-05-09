@@ -148,72 +148,44 @@ class dps_GUI(QMainWindow):
             self.pushButton_onoff_clicked()
             print("def shutdown")
 
-    def pg_plot_setup(self):  # right axis not connected to automatic scaling on the left ('A' icon on bottom LHD)
+    def pg_plot_setup(self):
         self.p1 = self.graphicsView.plotItem
         self.p1.setClipToView(True)
 
-        # x axis
-        self.p1.setLabel('bottom', 'Time', units='s', color=self.limits.x_colour, **{'font-size': '10pt'})
+        # os czasu
+        self.p1.setLabel('bottom', 'Czas', units='s', color=self.limits.x_colour, **{'font-size': '10pt'})
         self.p1.getAxis('bottom').setPen(pg.mkPen(color=self.limits.x_colour, width=self.limits.x_pen_weight))
 
-        # Y1 axis
-        self.p1.setLabel('left', 'Voltage', units='V', color=self.limits.y1_colour, **{'font-size': '10pt'})
+        # os napiecia
+        self.p1.setLabel('left', 'Napiecie', units='V', color=self.limits.y1_colour, **{'font-size': '10pt'})
         self.pen_Y1 = pg.mkPen(color=self.limits.y1_colour, width=self.limits.y1_pen_weight)
         self.p1.getAxis('left').setPen(self.pen_Y1)
 
-        # setup viewbox for right hand axis
+        # pole wykresu
         self.p2 = pg.ViewBox()
         self.p1.showAxis('right')
         self.p1.scene().addItem(self.p2)
         self.p1.getAxis('right').linkToView(self.p2)
         self.p2.setXLink(self.p1)
 
-        # Y2 axis
-        self.p1.setLabel('right', 'Current', units="A", color=self.limits.y2_colour, **{'font-size': '10pt'})
+        # os natezenia
+        self.p1.setLabel('right', 'Natezenie', units="A", color=self.limits.y2_colour, **{'font-size': '10pt'})
         self.pen_Y2 = pg.mkPen(color=self.limits.y2_colour, width=self.limits.y2_pen_weight)
         self.p1.getAxis('right').setPen(self.pen_Y2)
 
-        # scales ViewBox to scene
+        # skalowanie wykresu
         self.p1.vb.sigResized.connect(self.updateViews)
 
     def updateViews(self):
         self.p2.setGeometry(self.p1.vb.sceneBoundingRect())
         self.p2.linkedViewChanged(self.p1.vb, self.p2.XAxis)
 
-    # --- update graph
-    def update_graph_plot(self, chart_type='histogram'):
+    # odswiezanie wykresu
+    def update_graph_plot(self, chart_type='line'):
         start = time.time()
-        if chart_type == 'histogram':
-            X = np.asarray(self.graph_X, dtype=np.float32)
-            b = []
-            for a in X:
-                if len(b) == 0:
-                    b.append(a)
-                else:
-                    b.append(a - 0.000001)
-                    b.append(a)
-            c = len(b)
-            X = np.asarray(b, dtype=np.float32)
-
-            Y1 = np.asarray(self.graph_Y1, dtype=np.float32)
-            b = []
-            for a in Y1:
-                b.append(a)
-                if len(b) != c:
-                    b.append(a)
-            Y1 = np.asarray(b, dtype=np.float32)
-
-            Y2 = np.asarray(self.graph_Y2, dtype=np.float32)
-            b = []
-            for a in Y2:
-                b.append(a)
-                if len(b) != c:
-                    b.append(a)
-            Y2 = np.asarray(b, dtype=np.float32)
-        else:
-            X = np.asarray(self.graph_X, dtype=np.float32)
-            Y1 = np.asarray(self.graph_Y1, dtype=np.float32)
-            Y2 = np.asarray(self.graph_Y2, dtype=np.float32)
+        X = np.asarray(self.graph_X, dtype=np.float32)
+        Y1 = np.asarray(self.graph_Y1, dtype=np.float32)
+        Y2 = np.asarray(self.graph_Y2, dtype=np.float32)
 
         self.p1.clear()
         self.p2.clear()
@@ -224,18 +196,18 @@ class dps_GUI(QMainWindow):
         app.processEvents()
 
         a = (time.time() - start) * 1000.0
-        self.label_plot_rate.setText(("Plot Rate  : %8.3fms" % (a)))
+        self.label_plot_rate.setText(("Plot Rate  : %8.3fms" % (a)))#plot rate-zapytac hardware czy koniecznie chcemy wyswietlac
 
-    # --- file handling
+    # obsluga plikow
     def file_open(self):
-        filename = QFileDialog.getOpenFileName(self, "Open File", '', 'CSV(*.csv)')
+        filename = QFileDialog.getOpenFileName(self, "Wczytaj z pliku", '', 'CSV(*.csv)')
         if filename[0] != '':
             self.CSV_file = filename[0]
         if self.CSV_file != '':
             self.open_CSV(self.CSV_file)
 
     def file_save(self):
-        filename, _ = QFileDialog.getSaveFileName(self, "Save File",
+        filename, _ = QFileDialog.getSaveFileName(self, "Zapisz do pliku",
                                                   datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S") + ".csv",
                                                   "All Files (*);; CSV Files (*.csv)")
         if filename != '':
@@ -243,37 +215,23 @@ class dps_GUI(QMainWindow):
 
             if sys.platform.startswith('win'):
                 with open(filename, 'w',
-                          newline='') as f:  # added newline to prevent additional carriage return in windows (\r\r\n)
+                          newline='') as f:  # newline do obslugi powrotu karety dla windowsa
                     writer = csv.writer(f)
-                    row = ['time(s)', 'voltage(V)', 'current(A)']
+                    row = ['Czas(s)', 'Napiecie(V)', 'Natezenie(A)']
                     writer.writerow(row)
                     for row in rows:
                         writer.writerow(row)
-            elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            elif sys.platform.startswith('linux'):
                 with open(filename,
-                          'w') as f:  # added newline to prevent additional carriage return in windows (\r\r\n)
+                          'w') as f:  # w linuksie nie trzeba xd
                     writer = csv.writer(f)
-                    row = ['time(s)', 'voltage(V)', 'current(A)']
-                    writer.writerow(row)
-                    for row in rows:
-                        writer.writerow(row)
-            elif sys.platform.startswith('darwin'):
-                with open(filename,
-                          'w') as f:  # added newline to prevent additional carriage return in windows (\r\r\n)
-                    writer = csv.writer(f)
-                    row = ['time(s)', 'voltage(V)', 'current(A)']
+                    row = ['Czas(s)', 'Napiecie(V)', 'Natezenie(A)']
                     writer.writerow(row)
                     for row in rows:
                         writer.writerow(row)
             else:
-                raise EnvironmentError('Unsupported platform')
+                raise EnvironmentError('Nieobslugiwane srodowisko')
 
-    #	with open(filename, 'w', newline='') as f:					# added newline to prevent additional carriage return in windows (\r\r\n)
-    #		writer = csv.writer(f)
-    #		row = ['time(s)','voltage(V)','current(A)']
-    #		writer.writerow(row)
-    #		for row in rows:
-    #			writer.writerow(row)
 
     # --- thread related code
     def progress_fn(self, n):
